@@ -1,0 +1,7 @@
+# Only what the web app needs. Streamlit Cloud installs this file.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+duckdb==2.0.0
+streamlit
+sentence-transformers
+huggingface_hub

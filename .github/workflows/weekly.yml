@@ -1,0 +1,59 @@
+# Weekly refresh: fetch this year's new movies, rebuild, re-embed, publish.
+# Runs every Monday 03:17 Guatemala time, or by hand from the Actions tab.
+name: weekly-refresh
+
+on:
+  schedule:
+    - cron: "17 9 * * 1"     # 09:17 UTC = 03:17 Guatemala
+  workflow_dispatch:          # adds a "Run workflow" button
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    env:
+      TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HF_DATASET_REPO: ${{ vars.HF_DATASET_REPO }}
+
+    steps:
+      - name: Get the code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install packages (CPU-only torch keeps it small)
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt
+
+      - name: Only fetch the current year
+        run: |
+          echo "START_YEAR=$(date +%Y)" >> $GITHUB_ENV
+          echo "END_YEAR=$(date +%Y)"   >> $GITHUB_ENV
+
+      - name: Download last week's data
+        run: python scripts/hf_sync.py download
+
+      - name: Extract
+        run: |
+          python -m extract.fetch_discover
+          python -m extract.fetch_details
+          python -m extract.fetch_wiki_plots
+
+      - name: Load
+        run: python -m load.load_raw
+
+      - name: Transform (dbt)
+        working-directory: transform
+        run: dbt build --profiles-dir .
+
+      - name: Embed new movies
+        run: python -m search.embed
+
+      - name: Publish data
+        run: python scripts/hf_sync.py upload

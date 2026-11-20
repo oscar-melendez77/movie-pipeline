@@ -1,0 +1,8 @@
+# The raw tables created by load/load_raw.py
+version: 2
+sources:
+  - name: raw
+    schema: main
+    tables:
+      - name: raw_details
+      - name: raw_wiki

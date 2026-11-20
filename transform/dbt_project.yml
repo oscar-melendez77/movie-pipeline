@@ -1,0 +1,13 @@
+# dbt project: turns the raw tables into one clean "movies" table
+name: movie_pipeline
+version: "1.0"
+profile: movie_pipeline
+
+model-paths: ["models"]
+
+models:
+  movie_pipeline:
+    staging:
+      +materialized: view     # light, always fresh
+    marts:
+      +materialized: table    # the final table the search reads

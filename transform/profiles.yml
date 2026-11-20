@@ -1,0 +1,8 @@
+# Where dbt connects: our DuckDB file (path is relative to this transform/ folder)
+movie_pipeline:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: ../data/movies.duckdb
+      threads: 1

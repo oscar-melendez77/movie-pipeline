@@ -1,0 +1,7 @@
+requests
+python-dotenv
+duckdb==2.0.0          # pinned: the .duckdb file must be read by the same version everywhere
+dbt-duckdb
+sentence-transformers
+streamlit
+huggingface_hub

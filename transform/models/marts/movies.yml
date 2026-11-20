@@ -1,0 +1,12 @@
+# Tests: run with "dbt test"
+version: 2
+models:
+  - name: movies
+    description: One row per movie, with the text used for search.
+    columns:
+      - name: id
+        tests: [unique, not_null]
+      - name: title
+        tests: [not_null]
+      - name: search_text
+        tests: [not_null]

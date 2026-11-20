@@ -1,0 +1,10 @@
+.env
+.venv/
+__pycache__/
+data/raw/*
+!data/raw/.gitkeep
+*.tmp
+*.duckdb
+target/
+logs/
+raw.tar.gz
