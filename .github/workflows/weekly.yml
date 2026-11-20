@@ -1,28 +1,51 @@
-# Weekly refresh: fetch this year's new movies, rebuild, re-embed, publish.
-# Runs every Monday 03:17 Guatemala time, or by hand from the Actions tab.
-name: weekly-refresh
+# Daily check, refresh only when needed.
+#   Job 1 (check):   every day, ~1 minute. Asks TMDB: any new movies this year?
+#   Job 2 (refresh): the full pipeline. Runs ONLY if job 1 found something new,
+#                    or if you start it by hand with "force" ticked.
+name: daily-check-and-refresh
 
 on:
   schedule:
-    - cron: "17 9 * * 1"     # 09:17 UTC = 03:17 Guatemala
-  workflow_dispatch:          # adds a "Run workflow" button
+    - cron: "17 9 * * *"      # every day, 09:17 UTC = 03:17 Guatemala
+  workflow_dispatch:           # "Run workflow" button
+    inputs:
+      force:
+        description: "Run the full refresh even if nothing is new"
+        type: boolean
+        default: false
+
+env:
+  TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+  HF_TOKEN: ${{ secrets.HF_TOKEN }}
+  HF_DATASET_REPO: ${{ vars.HF_DATASET_REPO }}
 
 jobs:
+  # ---------- Job 1: cheap daily check ----------
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      has_new: ${{ steps.check.outputs.has_new }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install only what the check needs
+        run: pip install requests python-dotenv huggingface_hub
+      - name: Any new movies?
+        id: check
+        run: python -m scripts.check_new_movies
+
+  # ---------- Job 2: full refresh, only if needed ----------
   refresh:
+    needs: check
+    if: needs.check.outputs.has_new == 'true' || inputs.force
     runs-on: ubuntu-latest
     timeout-minutes: 120
-
-    env:
-      TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
-      HF_TOKEN: ${{ secrets.HF_TOKEN }}
-      HF_DATASET_REPO: ${{ vars.HF_DATASET_REPO }}
-
     steps:
-      - name: Get the code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
@@ -36,7 +59,7 @@ jobs:
           echo "START_YEAR=$(date +%Y)" >> $GITHUB_ENV
           echo "END_YEAR=$(date +%Y)"   >> $GITHUB_ENV
 
-      - name: Download last week's data
+      - name: Download current data
         run: python scripts/hf_sync.py download
 
       - name: Extract

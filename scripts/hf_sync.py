@@ -1,8 +1,9 @@
 """Move the data between your machine / GitHub Actions and Hugging Face.
 
-Hugging Face holds 2 files in a "dataset" repo (free storage):
+Hugging Face holds 3 files in a "dataset" repo (free storage):
   raw.tar.gz      - every raw JSON file, packed into one archive
   movies.duckdb   - the database (raw tables, dbt models, chunks + vectors)
+  known_ids.json  - IDs of every movie we have (for the daily check)
 
 Run:
   python scripts/hf_sync.py download   -> get the latest data from Hugging Face
@@ -12,6 +13,7 @@ Needs in .env (or GitHub secrets/variables):
   HF_TOKEN         - Hugging Face token with WRITE access
   HF_DATASET_REPO  - e.g. your-username/movie-pipeline-data
 """
+import json
 import os
 import sys
 import tarfile
@@ -55,9 +57,15 @@ elif action == "upload":
         tar.add(DATA / "raw", arcname="raw")
     print(f"packed raw -> {ARCHIVE.name} ({ARCHIVE.stat().st_size / 1e6:.0f} MB)")
 
-    # 2) Upload both files to the dataset repo (created the first time)
+    # 2) Save the list of movie IDs we have (used by the daily check)
+    known_ids = sorted(int(p.stem) for p in (DATA / "raw" / "details").glob("*.json"))
+    KNOWN_IDS = DATA / "known_ids.json"
+    KNOWN_IDS.write_text(json.dumps(known_ids))
+    print(f"saved known_ids.json ({len(known_ids)} movies)")
+
+    # 3) Upload the files to the dataset repo (created the first time)
     api.create_repo(DATASET_REPO, repo_type="dataset", private=False, exist_ok=True)
-    for path in [ARCHIVE, DB_FILE]:
+    for path in [ARCHIVE, DB_FILE, KNOWN_IDS]:
         api.upload_file(path_or_fileobj=path, path_in_repo=path.name,
                         repo_id=DATASET_REPO, repo_type="dataset")
         print(f"uploaded {path.name}")

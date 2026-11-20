@@ -8,3 +8,4 @@ data/raw/*
 target/
 logs/
 raw.tar.gz
+data/known_ids.json
